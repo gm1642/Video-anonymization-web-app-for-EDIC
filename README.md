@@ -12,7 +12,6 @@
 
 BlurShield uses YOLOv8 (via ONNX Runtime Web) to detect human beings in uploaded videos and applies Gaussian blur or pixelation to anonymize them. **Your video never leaves your device** — all processing happens client-side.
 
-[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start)
 
 ---
 
