@@ -1,4 +1,4 @@
-# 🛡️ BlurShield — AI Video Person Anonymization
+# 🛡️ EDIC's BlurShield — AI Video Person Anonymization
 
 <p align="center">
   <img src="assets/edic-logo.jpg" alt="EDIC Logo" height="64">
