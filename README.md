@@ -43,8 +43,9 @@ cd Video-anonymization-web-app-for-EDIC
 
 # Serve with any static server (needed for COOP/COEP headers)
 npx serve . --cors
-```
 npx -y serve . --cors -l 3000
+```
+
 
 ### Exporting the ONNX Model
 ```python
