@@ -2,7 +2,10 @@
    BlurShield — Video Processing Pipeline
    Extracts frames, runs detection, applies blur, records output.
    
-   Pipeline: Video → Seek frame → Canvas → YOLOv8 → Blur → MediaRecorder → Blob
+   Pipeline: Video → Seek frame → Canvas → YOLOv8 → Blur → VideoEncoder + Muxer → WebM Blob
+   
+   Uses WebCodecs VideoEncoder + webm-muxer for precise frame timing.
+   Falls back to MediaRecorder for browsers without WebCodecs support.
    ================================================================ */
 
 class VideoProcessor {
@@ -10,6 +13,14 @@ class VideoProcessor {
         this.detector = new YOLODetector();
         this.isProcessing = false;
         this.isCancelled = false;
+    }
+
+    /**
+     * Check if the modern WebCodecs path is available.
+     * Requires VideoEncoder API + webm-muxer library.
+     */
+    _hasWebCodecs() {
+        return typeof VideoEncoder !== 'undefined' && typeof WebMMuxer !== 'undefined';
     }
 
     /**
@@ -75,74 +86,106 @@ class VideoProcessor {
             const videoWidth = video.videoWidth;
             const videoHeight = video.videoHeight;
             const duration = video.duration;
-            const fps = 30; // Default fallback FPS — most videos are 24-30fps
+            const fps = 30; // Target FPS for output
             const totalFrames = Math.floor(duration * fps);
+            const frameDurationMicros = Math.round(1_000_000 / fps); // microseconds per frame
 
             callbacks.onStatus(`Video: ${videoWidth}×${videoHeight}, ${formatTime(duration)}, ~${totalFrames} frames`);
 
             // Step 3: Set up canvases
-            // Offscreen canvas for frame extraction
             const extractCanvas = document.createElement('canvas');
             extractCanvas.width = videoWidth;
             extractCanvas.height = videoHeight;
             const extractCtx = extractCanvas.getContext('2d', { willReadFrequently: true });
 
-            // Output canvas for blurred frames (this is also the recording source)
             const outputCanvas = document.createElement('canvas');
             outputCanvas.width = videoWidth;
             outputCanvas.height = videoHeight;
             const outputCtx = outputCanvas.getContext('2d');
 
-            // Set up the display canvas to mirror output
             displayCanvas.width = videoWidth;
             displayCanvas.height = videoHeight;
             const displayCtx = displayCanvas.getContext('2d');
 
-            // Step 4: Set up MediaRecorder
-            const stream = outputCanvas.captureStream(0); // 0 = manual frame push
-            const track = stream.getVideoTracks()[0];
+            // Step 4: Set up video encoder
+            // Choose between WebCodecs (precise timing) and MediaRecorder (fallback)
+            const useWebCodecs = this._hasWebCodecs();
+            let encoder = null;
+            let muxer = null;
+            let muxerTarget = null;
+            let mediaRecorder = null;
+            let recordedChunks = [];
+            let stream = null;
+            let track = null;
 
-            // Negotiate MIME type
-            let mimeType = 'video/webm;codecs=vp9';
-            if (!MediaRecorder.isTypeSupported(mimeType)) {
-                mimeType = 'video/webm;codecs=vp8';
+            if (useWebCodecs) {
+                callbacks.onStatus('Setting up encoder (WebCodecs)...');
+                console.log('[VideoProcessor] Using WebCodecs + webm-muxer for precise frame timing');
+
+                muxerTarget = new WebMMuxer.ArrayBufferTarget();
+                muxer = new WebMMuxer.Muxer({
+                    target: muxerTarget,
+                    video: {
+                        codec: 'V_VP8',
+                        width: videoWidth,
+                        height: videoHeight,
+                        frameRate: fps,
+                    },
+                    firstTimestampBehavior: 'offset',
+                });
+
+                encoder = new VideoEncoder({
+                    output: (chunk, meta) => {
+                        muxer.addVideoChunk(chunk, meta);
+                    },
+                    error: (e) => {
+                        console.error('[VideoEncoder] Error:', e);
+                    },
+                });
+
+                const bitrate = Math.max(1_000_000, Math.round(videoWidth * videoHeight * 3));
+                encoder.configure({
+                    codec: 'vp8',
+                    width: videoWidth,
+                    height: videoHeight,
+                    bitrate: bitrate,
+                    framerate: fps,
+                });
+            } else {
+                // Fallback: MediaRecorder (may have timing inaccuracies)
+                callbacks.onStatus('Setting up recorder (MediaRecorder fallback)...');
+                console.warn('[VideoProcessor] WebCodecs not available, falling back to MediaRecorder. Output timing may not match original.');
+
+                stream = outputCanvas.captureStream(0);
+                track = stream.getVideoTracks()[0];
+
+                let mimeType = 'video/webm;codecs=vp9';
+                if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm;codecs=vp8';
+                if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
+                if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/mp4';
+
+                const bitrate = Math.max(1_000_000, videoWidth * videoHeight * 4);
+                mediaRecorder = new MediaRecorder(stream, {
+                    mimeType,
+                    videoBitsPerSecond: bitrate,
+                });
+
+                mediaRecorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) recordedChunks.push(e.data);
+                };
+
+                mediaRecorder.start();
             }
-            if (!MediaRecorder.isTypeSupported(mimeType)) {
-                mimeType = 'video/webm';
-            }
-            if (!MediaRecorder.isTypeSupported(mimeType)) {
-                mimeType = 'video/mp4';
-            }
-
-            const bitrate = Math.max(1_000_000, videoWidth * videoHeight * 4);
-            const recordedChunks = [];
-
-            const mediaRecorder = new MediaRecorder(stream, {
-                mimeType,
-                videoBitsPerSecond: bitrate,
-            });
-
-            mediaRecorder.ondataavailable = (e) => {
-                if (e.data.size > 0) {
-                    recordedChunks.push(e.data);
-                }
-            };
-
-            // Start recording
-            mediaRecorder.start();
 
             // Step 5: Process frames
             callbacks.onStatus('Processing frames...');
             let currentFrame = 0;
             let lastDetections = [];
-
-            // Pad constant for extending blur region slightly beyond detection edge
             const PAD = 10;
 
             while (currentFrame < totalFrames && !this.isCancelled) {
                 const frameTime = currentFrame / fps;
 
-                // Seek to frame time
                 if (frameTime <= duration) {
                     await this._seekTo(video, frameTime);
                 } else {
@@ -152,7 +195,7 @@ class VideoProcessor {
                 // Draw frame to extraction canvas
                 extractCtx.drawImage(video, 0, 0, videoWidth, videoHeight);
 
-                // Run detection on this frame (or reuse previous if frame skipping)
+                // Run detection (or reuse previous if frame skipping)
                 let detections;
                 if (currentFrame % frameSkip === 0) {
                     const imageData = extractCtx.getImageData(0, 0, videoWidth, videoHeight);
@@ -176,9 +219,23 @@ class VideoProcessor {
                     applyBlur(outputCtx, bx1, by1, bx2, by2, blurIntensity, blurStyle);
                 }
 
-                // Push frame to MediaRecorder
-                if (track.requestFrame) {
-                    track.requestFrame();
+                // Encode/record the frame
+                if (useWebCodecs) {
+                    // Create a VideoFrame with the exact timestamp for this frame
+                    const timestampMicros = currentFrame * frameDurationMicros;
+                    const videoFrame = new VideoFrame(outputCanvas, {
+                        timestamp: timestampMicros,
+                        duration: frameDurationMicros,
+                    });
+                    // Encode as keyframe every 2 seconds (every fps*2 frames)
+                    const keyFrame = (currentFrame % (fps * 2) === 0);
+                    encoder.encode(videoFrame, { keyFrame });
+                    videoFrame.close();
+                } else {
+                    // MediaRecorder fallback
+                    if (track && track.requestFrame) {
+                        track.requestFrame();
+                    }
                 }
 
                 // Update display canvas
@@ -192,26 +249,45 @@ class VideoProcessor {
                 callbacks.onFrame(currentFrame, totalFrames, detections);
                 callbacks.onFPS(fps_current);
 
-                // Yield to the browser event loop every frame to keep UI responsive
+                // Yield to browser event loop to keep UI responsive
                 await new Promise(r => setTimeout(r, 0));
             }
 
             if (this.isCancelled) {
-                mediaRecorder.stop();
+                if (useWebCodecs) {
+                    encoder.close();
+                } else {
+                    mediaRecorder.stop();
+                }
                 URL.revokeObjectURL(videoURL);
                 return this._cleanup();
             }
 
-            // Step 6: Finalize recording
+            // Step 6: Finalize
             callbacks.onStatus('Finalizing video...');
 
-            const blob = await new Promise((resolve) => {
-                mediaRecorder.onstop = () => {
-                    const finalBlob = new Blob(recordedChunks, { type: mimeType });
-                    resolve(finalBlob);
-                };
-                mediaRecorder.stop();
-            });
+            let blob;
+            let outputMimeType;
+
+            if (useWebCodecs) {
+                // Flush encoder and finalize muxer
+                await encoder.flush();
+                encoder.close();
+                muxer.finalize();
+
+                blob = new Blob([muxerTarget.buffer], { type: 'video/webm' });
+                outputMimeType = 'video/webm';
+            } else {
+                // MediaRecorder finalization
+                blob = await new Promise((resolve) => {
+                    mediaRecorder.onstop = () => {
+                        const finalBlob = new Blob(recordedChunks, { type: mediaRecorder.mimeType });
+                        resolve(finalBlob);
+                    };
+                    mediaRecorder.stop();
+                });
+                outputMimeType = mediaRecorder.mimeType;
+            }
 
             // Cleanup
             URL.revokeObjectURL(videoURL);
@@ -224,7 +300,8 @@ class VideoProcessor {
                 processingTime,
                 avgFPS: fpsCounter.getAverage(),
                 outputSize: blob.size,
-                mimeType,
+                mimeType: outputMimeType,
+                encoder: useWebCodecs ? 'WebCodecs + webm-muxer' : 'MediaRecorder',
             };
 
             callbacks.onStatus('Complete!');
@@ -246,13 +323,9 @@ class VideoProcessor {
     /**
      * Seek a video element to a specific time and wait for the seek to complete.
      * @private
-     * @param {HTMLVideoElement} video
-     * @param {number} time - Time in seconds
-     * @returns {Promise<void>}
      */
     _seekTo(video, time) {
         return new Promise((resolve) => {
-            // If we're already at this time, resolve immediately
             if (Math.abs(video.currentTime - time) < 0.001) {
                 resolve();
                 return;
