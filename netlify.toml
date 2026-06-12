@@ -1,0 +1,32 @@
+# BlurShield — Netlify Deployment Configuration
+# These headers are REQUIRED for ONNX Runtime Web's WASM multi-threaded backend
+# SharedArrayBuffer needs Cross-Origin-Opener-Policy and Cross-Origin-Embedder-Policy
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Cross-Origin-Opener-Policy = "same-origin"
+    Cross-Origin-Embedder-Policy = "require-corp"
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+# Cache the ONNX model aggressively (it's immutable)
+[[headers]]
+  for = "/models/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Cache static assets
+[[headers]]
+  for = "/css/*"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"
+
+[[headers]]
+  for = "/js/*"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"
+
+[build]
+  publish = "."

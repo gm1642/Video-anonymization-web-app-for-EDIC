@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# ONNX Model (too large for git - download separately)
+
+
+# Python
+__pycache__/
+*.pyc
+*.pt
+*.pth
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Build outputs
+dist/
+build/

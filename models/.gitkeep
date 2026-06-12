@@ -1,0 +1,2 @@
+# Place yolov8n.onnx here
+# Export it with: python -c "from ultralytics import YOLO; YOLO('yolov8n.pt').export(format='onnx', imgsz=640)"

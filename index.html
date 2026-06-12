@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BlurShield — AI Video Anonymization | EDIC, Aligarh Muslim University</title>
+    <meta name="description" content="Detect and blur all people in videos using AI. Built by EDIC (Engineering Design & Implementation Club), Aligarh Muslim University. 100% private — runs entirely in your browser.">
+    <meta name="keywords" content="video anonymization, blur people, privacy, YOLOv8, AI, ONNX, EDIC, AMU, Aligarh Muslim University">
+    <meta name="theme-color" content="#6366f1">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <!-- Animated background mesh -->
+    <div class="bg-mesh" aria-hidden="true"></div>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <!-- SVG gradient definition (used by icons throughout the page) -->
+            <svg width="0" height="0" style="position:absolute">
+                <defs>
+                    <linearGradient id="shield-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#6366f1"/>
+                        <stop offset="50%" style="stop-color:#8b5cf6"/>
+                        <stop offset="100%" style="stop-color:#a855f7"/>
+                    </linearGradient>
+                </defs>
+            </svg>
+            <div class="header-top">
+                <a href="#" class="edic-badge" title="Engineering Design & Implementation Club">
+                    <img src="assets/edic-logo.jpg" alt="EDIC Logo" class="edic-logo">
+                </a>
+            </div>
+            <div class="logo">
+                <svg class="logo-icon" width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M20 2L4 10V20C4 30 12 38 20 38C28 38 36 30 36 20V10L20 2Z" fill="url(#shield-grad)" opacity="0.9"/>
+                    <circle cx="20" cy="19" r="7" fill="none" stroke="white" stroke-width="2"/>
+                    <circle cx="20" cy="19" r="3" fill="white"/>
+                    <line x1="14" y1="13" x2="26" y2="25" stroke="#0a0a0f" stroke-width="2.5" stroke-linecap="round"/>
+                </svg>
+                <h1 class="logo-text">BlurShield</h1>
+            </div>
+            <p class="tagline">AI-Powered Video Anonymization — <span class="accent-text">100% Private</span>, Runs in Your Browser</p>
+            <p class="tagline-sub">A project by <strong>EDIC</strong> — Engineering Design & Implementation Club, AMU</p>
+        </div>
+    </header>
+
+    <main class="container">
+
+        <!-- Upload Section -->
+        <section id="upload-section" class="section fade-in-up">
+            <div class="upload-zone" id="upload-zone">
+                <input type="file" id="file-input" accept="video/mp4,video/webm,video/avi,video/quicktime,.mp4,.webm,.avi,.mov" hidden>
+                <div class="upload-content">
+                    <svg class="upload-icon" width="64" height="64" viewBox="0 0 64 64" fill="none">
+                        <path d="M32 44V20M32 20L22 30M32 20L42 30" stroke="url(#shield-grad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M10 40C10 40 10 52 22 52H42C54 52 54 40 54 40" stroke="url(#shield-grad)" stroke-width="3" stroke-linecap="round"/>
+                    </svg>
+                    <p class="upload-text">Drop your video here or <span class="upload-link">click to browse</span></p>
+                    <p class="upload-hint">Supports MP4, WebM, AVI, MOV • Max 200MB</p>
+                </div>
+            </div>
+            <!-- File info (shown after selection) -->
+            <div id="file-info" class="file-info hidden">
+                <div class="file-details">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                        <rect x="4" y="2" width="16" height="20" rx="2" stroke="#8b5cf6" stroke-width="2"/>
+                        <path d="M8 8h8M8 12h8M8 16h4" stroke="#8b5cf6" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    <div>
+                        <p class="file-name" id="file-name">—</p>
+                        <p class="file-meta" id="file-meta">—</p>
+                    </div>
+                </div>
+                <button class="btn btn-primary" id="process-btn">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <polygon points="5,3 17,10 5,17" fill="white"/>
+                    </svg>
+                    Start Processing
+                </button>
+            </div>
+        </section>
+
+        <!-- Settings Panel -->
+        <section id="settings-panel" class="section settings-panel fade-in-up hidden">
+            <button class="settings-toggle" id="settings-toggle">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                    <circle cx="10" cy="10" r="3" stroke="currentColor" stroke-width="1.5"/>
+                    <path d="M10 1v3M10 16v3M1 10h3M16 10h3M3.5 3.5l2 2M14.5 14.5l2 2M3.5 16.5l2-2M14.5 5.5l2-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+                Processing Settings
+                <svg class="chevron" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </button>
+            <div class="settings-content" id="settings-content">
+                <div class="settings-grid">
+                    <div class="setting-item">
+                        <label for="conf-threshold">
+                            Confidence Threshold
+                            <span class="setting-value" id="conf-value">0.40</span>
+                        </label>
+                        <input type="range" id="conf-threshold" min="0.1" max="0.9" step="0.05" value="0.4">
+                        <p class="setting-desc">Higher = fewer false positives, lower = catch more people</p>
+                    </div>
+                    <div class="setting-item">
+                        <label for="blur-intensity">
+                            Blur Intensity
+                            <span class="setting-value" id="blur-value">80</span>
+                        </label>
+                        <input type="range" id="blur-intensity" min="10" max="150" step="5" value="80">
+                        <p class="setting-desc">Strength of the anonymization effect</p>
+                    </div>
+                    <div class="setting-item">
+                        <label>Blur Style</label>
+                        <div class="toggle-group">
+                            <button class="toggle-btn active" id="blur-style-gaussian" data-style="gaussian">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5" opacity="0.5"/><circle cx="8" cy="8" r="3" fill="currentColor" opacity="0.7"/></svg>
+                                Gaussian
+                            </button>
+                            <button class="toggle-btn" id="blur-style-pixelate" data-style="pixelate">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" fill="currentColor" opacity="0.5"/><rect x="9" y="1" width="6" height="6" fill="currentColor" opacity="0.7"/><rect x="1" y="9" width="6" height="6" fill="currentColor" opacity="0.7"/><rect x="9" y="9" width="6" height="6" fill="currentColor" opacity="0.5"/></svg>
+                                Pixelate
+                            </button>
+                        </div>
+                        <input type="hidden" id="blur-style" value="gaussian">
+                    </div>
+                    <div class="setting-item">
+                        <label for="frame-skip">
+                            Process Every
+                            <span class="setting-value" id="skip-value">1</span>
+                            <span>frame(s)</span>
+                        </label>
+                        <input type="range" id="frame-skip" min="1" max="5" step="1" value="1">
+                        <p class="setting-desc">Skip frames for faster processing (1 = every frame)</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Processing Section -->
+        <section id="processing-section" class="section fade-in-up hidden">
+            <h2 class="section-title">Processing Video</h2>
+            <div class="video-compare">
+                <div class="video-panel">
+                    <span class="video-label">Original</span>
+                    <video id="original-video" muted playsinline></video>
+                </div>
+                <div class="video-panel">
+                    <span class="video-label">Anonymized</span>
+                    <canvas id="process-canvas"></canvas>
+                </div>
+            </div>
+            <div class="progress-section">
+                <div class="progress-header">
+                    <span id="status-text" class="status-text">Initializing...</span>
+                    <span id="fps-counter" class="fps-counter">— FPS</span>
+                </div>
+                <div class="progress-bar" id="progress-bar">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                <div class="progress-footer">
+                    <span id="progress-percent">0%</span>
+                    <span id="frames-counter">0 / 0 frames</span>
+                </div>
+            </div>
+            <button class="btn btn-danger" id="cancel-btn">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                    <path d="M4 4l10 10M14 4L4 14" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                Cancel Processing
+            </button>
+        </section>
+
+        <!-- Results Section -->
+        <section id="results-section" class="section fade-in-up hidden">
+            <h2 class="section-title">
+                <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+                    <circle cx="14" cy="14" r="12" stroke="#10b981" stroke-width="2"/>
+                    <path d="M9 14l3 3 7-7" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Processing Complete
+            </h2>
+            <div class="video-compare">
+                <div class="video-panel">
+                    <span class="video-label">Original</span>
+                    <video id="result-original" muted playsinline controls></video>
+                </div>
+                <div class="video-panel">
+                    <span class="video-label">Anonymized</span>
+                    <video id="result-video" muted playsinline controls></video>
+                </div>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" stroke="#6366f1" stroke-width="2"/><path d="M7 12h10" stroke="#6366f1" stroke-width="2" stroke-linecap="round"/></svg>
+                    <span class="stat-value" id="stat-frames">—</span>
+                    <span class="stat-label">Frames Processed</span>
+                </div>
+                <div class="stat-card">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="7" r="4" stroke="#a855f7" stroke-width="2"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7" stroke="#a855f7" stroke-width="2"/></svg>
+                    <span class="stat-value" id="stat-detections">—</span>
+                    <span class="stat-label">Persons Detected</span>
+                </div>
+                <div class="stat-card">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#22d3ee" stroke-width="2"/><path d="M12 7v5l3 3" stroke="#22d3ee" stroke-width="2" stroke-linecap="round"/></svg>
+                    <span class="stat-value" id="stat-time">—</span>
+                    <span class="stat-label">Processing Time</span>
+                </div>
+                <div class="stat-card">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M13 2L3 14h8l-1 8 10-12h-8l1-8z" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <span class="stat-value" id="stat-fps">—</span>
+                    <span class="stat-label">Avg FPS</span>
+                </div>
+            </div>
+            <div class="result-actions">
+                <button class="btn btn-success btn-lg pulse-anim" id="download-btn">
+                    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+                        <path d="M11 3v12M11 15l-5-5M11 15l5-5" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M3 17v2h16v-2" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+                    </svg>
+                    Download Anonymized Video
+                </button>
+                <button class="btn btn-ghost" id="reset-btn">
+                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                        <path d="M3 3v5h5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M3 8A7 7 0 1 1 4 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    Process Another Video
+                </button>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Credits Section -->
+    <section class="credits-section">
+        <div class="container">
+            <div class="credits-card">
+                <div class="credits-header">
+                    <img src="assets/edic-logo.jpg" alt="EDIC Logo" class="credits-logo">
+                    <div>
+                        <h3 class="credits-club">Engineering Design & Implementation Club</h3>
+                        <p class="credits-university">Aligarh Muslim University</p>
+                    </div>
+                </div>
+                <div class="credits-divider"></div>
+                <div class="credits-people">
+                    <div class="credit-person">
+                        <div class="credit-role">Developed by</div>
+                        <div class="credit-name">Umar Ali Khan</div>
+                        <div class="credit-detail">ML Coordinator, EDIC • Electronics Engineering '26</div>
+                    </div>
+                    <div class="credit-person">
+                        <div class="credit-role">Supervised by</div>
+                        <div class="credit-name">Prof. S. Atiqur Rahman</div>
+                        <div class="credit-detail">Professor, Aligarh Muslim University</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-left">
+                    <p class="footer-powered">Powered by <strong>YOLOv8</strong> + <strong>ONNX Runtime Web</strong></p>
+                    <div class="footer-privacy">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                            <rect x="3" y="7" width="10" height="7" rx="1.5" stroke="#10b981" stroke-width="1.5"/>
+                            <path d="M5 7V5a3 3 0 016 0v2" stroke="#10b981" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                        <span>Your video never leaves your device</span>
+                    </div>
+                </div>
+                <div class="footer-right">
+                    <span class="footer-edic">© 2026 EDIC, AMU</span>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.21.0/dist/ort.min.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/yolo.js"></script>
+    <script src="js/processor.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
