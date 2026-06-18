@@ -6,7 +6,7 @@
 
 /* ---- CSS Variables ---- */
 :root {
-    --bg-primary: #060A13;
+    --bg-primary: #040810;
     --bg-secondary: #0B1120;
     --surface: rgba(11, 17, 35, 0.80);
     --surface-hover: rgba(18, 28, 55, 0.88);
@@ -61,7 +61,7 @@ html {
 
 body {
     font-family: var(--font);
-    background: var(--bg-primary);
+    background: linear-gradient(165deg, #040810 0%, #070d1a 30%, #0a1228 60%, #060e1e 100%);
     color: var(--text);
     line-height: 1.6;
     min-height: 100vh;
@@ -94,29 +94,72 @@ body {
     overflow: hidden;
 }
 
-/* Subtle animated dot grid */
+/* Blueprint grid — fine lines + coarser section lines */
 .bg-mesh::before {
     content: '';
     position: absolute;
     inset: 0;
     background-image:
-        radial-gradient(circle 1px, rgba(37, 99, 235, 0.15) 1px, transparent 1px);
-    background-size: 48px 48px;
-    animation: gridDrift 30s linear infinite;
-    opacity: 0.6;
+        /* Fine grid lines */
+        linear-gradient(rgba(37, 99, 235, 0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(37, 99, 235, 0.06) 1px, transparent 1px),
+        /* Coarse section lines every 5th cell */
+        linear-gradient(rgba(56, 189, 248, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(56, 189, 248, 0.04) 1px, transparent 1px);
+    background-size:
+        40px 40px,
+        40px 40px,
+        200px 200px,
+        200px 200px;
+    animation: gridDrift 60s linear infinite;
+    mask-image: radial-gradient(ellipse 80% 70% at 50% 50%, black 30%, transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse 80% 70% at 50% 50%, black 30%, transparent 75%);
 }
 
-/* Flowing aurora gradient blobs */
+/* Aurora gradient orbs — large, colorful, slowly drifting */
 .bg-mesh::after {
     content: '';
     position: absolute;
-    inset: 0;
+    inset: -20%;
     background:
-        radial-gradient(ellipse 700px 500px at 15% 15%, rgba(37, 99, 235, 0.12) 0%, transparent 70%),
-        radial-gradient(ellipse 600px 600px at 85% 30%, rgba(29, 78, 216, 0.08) 0%, transparent 70%),
-        radial-gradient(ellipse 500px 400px at 50% 85%, rgba(56, 189, 248, 0.06) 0%, transparent 70%),
-        radial-gradient(ellipse 400px 400px at 70% 70%, rgba(30, 64, 175, 0.06) 0%, transparent 70%);
-    animation: auroraShift 25s ease-in-out infinite alternate;
+        /* Primary blue orb — top left */
+        radial-gradient(ellipse 800px 600px at 20% 15%, rgba(37, 99, 235, 0.18) 0%, transparent 65%),
+        /* Deep blue orb — right */
+        radial-gradient(ellipse 700px 700px at 80% 25%, rgba(29, 78, 216, 0.12) 0%, transparent 60%),
+        /* Cyan accent orb — bottom */
+        radial-gradient(ellipse 600px 500px at 40% 80%, rgba(56, 189, 248, 0.10) 0%, transparent 65%),
+        /* Subtle warm accent — center right */
+        radial-gradient(ellipse 500px 500px at 75% 65%, rgba(30, 64, 175, 0.08) 0%, transparent 60%),
+        /* Extra glow — center */
+        radial-gradient(ellipse 900px 400px at 50% 50%, rgba(37, 99, 235, 0.06) 0%, transparent 70%);
+    animation: auroraShift 20s ease-in-out infinite alternate;
+}
+
+/* Extra floating glow layer (uses a separate div or box-shadow trick) */
+.bg-glow {
+    position: fixed;
+    top: -200px;
+    left: -200px;
+    width: 500px;
+    height: 500px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(37, 99, 235, 0.12) 0%, transparent 70%);
+    z-index: -1;
+    animation: glowFloat 18s ease-in-out infinite;
+    pointer-events: none;
+}
+
+.bg-glow-2 {
+    position: fixed;
+    bottom: -150px;
+    right: -150px;
+    width: 600px;
+    height: 600px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(56, 189, 248, 0.08) 0%, transparent 70%);
+    z-index: -1;
+    animation: glowFloat2 22s ease-in-out infinite;
+    pointer-events: none;
 }
 
 /* ---- Container ---- */
@@ -1114,14 +1157,28 @@ input[type="range"]::-moz-range-thumb {
 }
 
 @keyframes auroraShift {
-    0% { transform: scale(1) rotate(0deg); opacity: 1; }
-    50% { transform: scale(1.05) rotate(1deg); opacity: 0.8; }
-    100% { transform: scale(0.98) rotate(-1deg); opacity: 1; }
+    0% { transform: translate(0, 0) scale(1); }
+    25% { transform: translate(30px, -20px) scale(1.03); }
+    50% { transform: translate(-20px, 15px) scale(0.97); }
+    75% { transform: translate(15px, 25px) scale(1.02); }
+    100% { transform: translate(-10px, -10px) scale(1); }
 }
 
 @keyframes gridDrift {
-    0% { background-position: 0px 0px; }
-    100% { background-position: 48px 48px; }
+    0% { background-position: 0px 0px, 0px 0px, 0px 0px, 0px 0px; }
+    100% { background-position: 40px 40px, 40px 40px, 200px 200px, 200px 200px; }
+}
+
+@keyframes glowFloat {
+    0%, 100% { transform: translate(0, 0); opacity: 0.8; }
+    33% { transform: translate(200px, 150px); opacity: 1; }
+    66% { transform: translate(100px, 300px); opacity: 0.6; }
+}
+
+@keyframes glowFloat2 {
+    0%, 100% { transform: translate(0, 0); opacity: 0.7; }
+    33% { transform: translate(-180px, -120px); opacity: 1; }
+    66% { transform: translate(-80px, -250px); opacity: 0.5; }
 }
 
 @keyframes spin {
